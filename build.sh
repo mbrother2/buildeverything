@@ -31,9 +31,10 @@ List_Ubuntu=(16.04 18.04 20.04)
 List_MARIADB=(5.5 10.0 10.1 10.2 10.3 10.4 10.5)
 List_NODEJS=(8.x 9.x 10.x 11.x 12.x 14.x)
 List_BACKUP=(all gdrive rclone restic)
+List_CACHE=(all memcached redis)
 List_FTP=(proftpd pure-ftpd vsftpd)
 List_WEB=(httpd openlitespeed nginx)
-List_EXTRA=(all phpmyadmin memcached redis vnstat)
+List_EXTRA=(all phpmyadmin vnstat)
 List_SECURITY=(all acme_sh certbot clamav csf imunify)
 List_STACK=(lamp lemp lomp)
 List_SKIP_ACTION=(all no-update no-preinstall no-start)
@@ -462,6 +463,23 @@ _check_info(){
             SHOW_OPTIONS=$(echo "${SHOW_OPTIONS}"
                            echo "Backup         : ${GET_BACKUP_SERVICE[*]}")
             INSTALL_SERVICE+=("${GET_BACKUP_SERVICE[*]}")
+        fi
+    fi
+    if [ ! -z "${GET_CACHE_SERVICE}" ]
+    then
+        if [ "${GET_CACHE_SERVICE}" == "all" ]
+        then
+            GET_CACHE_SERVICE=( "${List_CACHE[@]:1}" )
+        fi
+        for i_CACHE_SERVICE in ${GET_CACHE_SERVICE[*]}
+        do
+            _check_exclude GET_CACHE_SERVICE "${GET_CACHE_SERVICE[*]}" "${i_CACHE_SERVICE}"
+        done
+        if [ ! -z "${GET_CACHE_SERVICE}" ]
+        then
+            SHOW_OPTIONS=$(echo "${SHOW_OPTIONS}"
+                           echo "Cache          : ${GET_CACHE_SERVICE[*]}")
+            INSTALL_SERVICE+=("${GET_CACHE_SERVICE[*]}")
         fi
     fi
     if [ ! -z "${GET_FTP_SERVER}" ]
@@ -1244,15 +1262,15 @@ _install_memcached_redis(){
     echo ""
     _show_log -d -g " [INFO]" -w " Installing ${SERVICE_NAME}..."
     _detect_web_server "php ${SERVICE_NAME} extension"
-    if [ "${WEB_SERVER}" = nginx ]
+    if [ "${WEB_SERVER}" != "nginx" ]
     then
-        PHP_PREFIX="php"
-        PHP_DIR="${REMI_DIR}"
-        PHP_SUFFIX="-php"
-    else
         PHP_PREFIX="lsphp"
         PHP_DIR="${LSWS_DIR}"
         PHP_SUFFIX="-pecl"
+    else        
+        PHP_PREFIX="php"
+        PHP_DIR="${REMI_DIR}"
+        PHP_SUFFIX="-php"
     fi
     if [ -z "${GET_PHP_VERSION}" ]
     then
@@ -1263,7 +1281,7 @@ _install_memcached_redis(){
             _show_log -d -r " [FAIL]" -w " Can not detect PHP version! Exit"
             _exit_build 1
         else
-            _show_log -d -g " [INFO]" -w " List PHP version: $(ls -1 /usr/local/lsws | grep "lsphp[0-9][0-9]" | sed "s/lsphp//" | sed ':a;N;$!ba;s/\n/,/g')"
+            _show_log -d -g " [INFO]" -w " List PHP version: $(ls -1 ${PHP_DIR} | grep "${PHP_PREFIX}[0-9][0-9]" | sed "s/.*php//" | sed ':a;N;$!ba;s/\n/,/g')"
         fi
         PHP_VERSION_MCD=$(ls -1 ${PHP_DIR} | grep "${PHP_PREFIX}[0-9][0-9]" | sed "s/${PHP_PREFIX}//")
     else
@@ -1636,6 +1654,13 @@ _main_install(){
             _install_${i_EXTRA_SERVICE}
         done
     fi
+    if [ ! -z "${GET_CACHE_SERVICE}" ]
+    then
+        for i_CACHE_SERVICE in ${GET_CACHE_SERVICE[*]}
+        do
+            _install_${i_CACHE_SERVICE}
+        done
+    fi
     if [ ! -z "${SECURITY_SERVICE}" ]
     then
         for i_SECURITY_SERVICE in ${SECURITY_SERVICE[*]}
@@ -1658,6 +1683,9 @@ Options:
 
     --backup [backup-service]   Choose backup service will be installed.
                                 Support: $(echo ${List_BACKUP[*]} | sed 's/ /|/g')
+
+    --cache [cache-service]     Choose cache service will be installed. Can use multiple --cache options.
+                                Support: $(echo ${List_CACHE[*]} | sed 's/ /|/g')
 
     --extra [extra-service]     Install extra services. Can use multiple --extra options.
                                 Support: $(echo ${List_EXTRA[*]} | sed 's/ /|/g')
@@ -1814,6 +1842,44 @@ do
                         _get_option multi $1 GET_BACKUP_SERVICE $2
                         _check_value_in_list "Backup service" "${GET_BACKUP_SERVICE}" "${List_BACKUP[*]}"
                         GET_BACKUP_SERVICE=($(echo "${GET_BACKUP_SERVICE[@]}" | tr ' ' '\n' | sort -u | tr '\n' ' '))
+                    fi
+                fi
+                shift 2
+            fi
+            ;;
+        --cache)
+            if [ "$2" == "--help" ]
+            then
+                echo "Usage: sh ${SCRIPT_NAME} --cache [cache-service]"
+                echo "[cache-service] = `echo ${List_CACHE[*]} | sed 's/ /|/g'`"
+                echo ""
+                echo "This option will be install following services:"
+                for i_CACHE in ${List_CACHE[*]}
+                do
+                    echo "---"
+                    echo "[cache-service] = ${i_CACHE}"
+                    if [ "${i_CACHE}" == "all" ]
+                    then
+                        i_CACHE="${List_CACHE[*]:1}"
+                    fi
+                    echo "Cache: ${i_CACHE}"
+                done
+                echo ""
+                echo "Example:"
+                echo "    sh ${SCRIPT_NAME} --cache all"
+                echo "    sh ${SCRIPT_NAME} --cache memcached --cache redis"
+                echo "    sh ${SCRIPT_NAME} --cache memcached --web nginx --php 7.2"
+                _exit_build 0
+            else
+                if [ "${GET_CACHE_SERVICE}" != "all" ]
+                then
+                    if [ "$2" == "all" ]
+                    then
+                        GET_CACHE_SERVICE="all"
+                    else
+                        _get_option multi $1 GET_CACHE_SERVICE $2
+                        _check_value_in_list "Backup service" "${GET_CACHE_SERVICE}" "${List_CACHE[*]}"
+                        GET_CACHE_SERVICE=($(echo "${GET_CACHE_SERVICE[@]}" | tr ' ' '\n' | sort -u | tr '\n' ' '))
                     fi
                 fi
                 shift 2
