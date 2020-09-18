@@ -8,12 +8,11 @@ SCRIPT_NAME=$0
 ALL_OPTIONS="$@"
 GO_VERSION="go1.12.5.linux-amd64"
 RANDOM_STRING=`date +%s | sha256sum | base64 | head -c 12`
-BUILD_TMP="/root/buildmce_${RANDOM_STRING}"
+BUILD_TMP="/root/buildeverything_${RANDOM_STRING}"
 DIR=`pwd`
-BASH_DIR="/var/mce/script"
-GITHUB_LINK="https://raw.githubusercontent.com/mbrother2/buildmce/master"
+GITHUB_LINK="https://raw.githubusercontent.com/mbrother2/buildeverything/master"
 MARIADB_MIRROR="http://sgp1.mirrors.digitalocean.com"
-LOG_FILE="/var/mce/log/install.log"
+LOG_FILE="/var/log/buildeverything.log"
 DEFAULT_DIR_WEB="/var/www/html"
 REMI_DIR="/etc/opt/remi"
 LSWS_DIR="/usr/local/lsws"
@@ -186,7 +185,7 @@ _end_install(){
 
 # Create necessary directory
 _create_dir(){
-    for i in /var/mce/log ${DEFAULT_DIR_WEB} ${BUILD_TMP}
+    for i in ${DEFAULT_DIR_WEB} ${BUILD_TMP}
     do
         if [ ! -d $i ]
         then
