@@ -2067,9 +2067,9 @@ do
             fi
             ;;
         --update)
-#            rm -f $0
-#            curl -so $0 ${GITHUB_LINK}/build.sh
-             chmod 755 $0
+            rm -f $0
+            curl -so $0 ${GITHUB_LINK}/build.sh
+            chmod 755 $0
             _exit_build 0
             ;;
         --web)
